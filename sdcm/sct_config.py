@@ -1052,6 +1052,10 @@ class SCTConfiguration(dict):
              type=str,
              help="Number of nodes to upgrade and rollback in test_generic_cluster_upgrade"),
 
+        dict(name="sync_reloc_package", env="SCT_SYNC_RELOC_PACKAGE",
+             type=str,
+             help="Before starting the database, syncs the database to a relocatabele package"),
+
         dict(name="upgrade_sstables", env="SCT_UPGRADE_SSTABLES",
              type=boolean,
              help="Whether to upgrade sstables as part of upgrade_node or not"),

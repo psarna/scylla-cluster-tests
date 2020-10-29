@@ -259,6 +259,7 @@
 | **<a href="#user-content-use_legacy_cluster_init" name="use_legacy_cluster_init">use_legacy_cluster_init</a>**  | Use legacy cluster initialization with autobootsrap disabled and parallel node setup | N/A | SCT_USE_LEGACY_CLUSTER_INIT
 | **<a href="#user-content-availability_zone" name="availability_zone">availability_zone</a>**  | Availability zone to use. Same for multi-region scenario. | N/A | SCT_AVAILABILITY_ZONE
 | **<a href="#user-content-num_nodes_to_rollback" name="num_nodes_to_rollback">num_nodes_to_rollback</a>**  | Number of nodes to upgrade and rollback in test_generic_cluster_upgrade | N/A | SCT_NUM_NODES_TO_ROLLBACK
+| **<a href="#user-content-sync_reloc_package" name="sync_reloc_package">sync_reloc_package</a>**  | Before starting the database, syncs the database to a relocatabele package | N/A | SCT_SYNC_RELOC_PACKAGE
 | **<a href="#user-content-upgrade_sstables" name="upgrade_sstables">upgrade_sstables</a>**  | Whether to upgrade sstables as part of upgrade_node or not | N/A | SCT_UPGRADE_SSTABLES
 | **<a href="#user-content-stress_before_upgrade" name="stress_before_upgrade">stress_before_upgrade</a>**  | Stress command to be run before upgrade (preapre stage) | N/A | SCT_STRESS_BEFORE_UPGRADE
 | **<a href="#user-content-stress_during_entire_upgrade" name="stress_during_entire_upgrade">stress_during_entire_upgrade</a>**  | Stress command to be run during the upgrade - user should take care for suitable duration | N/A | SCT_STRESS_DURING_ENTIRE_UPGRADE

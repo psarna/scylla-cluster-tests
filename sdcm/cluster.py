@@ -3291,6 +3291,15 @@ def wait_for_init_wrap(method):
         start_time = time.perf_counter()
         init_nodes = []
         results = []
+        reloc_tmp_dir = None
+        if isinstance(cl_inst, BaseScyllaCluster):
+            new_reloc_package = cl_inst.params.get('sync_reloc_package')
+            LOGGER.info("Trying to pull reloc package:'{}'".format(new_reloc_package))
+            if new_reloc_package:
+                reloc_tmp_dir = tempfile.mkdtemp()
+                os.system("cd {} && tar -xzf {}".format(reloc_tmp_dir,new_reloc_package))
+            cl_inst.reloc_pkg_dir = reloc_tmp_dir + "/scylla" if reloc_tmp_dir else None
+            LOGGER.info("Setting reloc package dir to:'{}'".format(cl_inst.reloc_pkg_dir))
 
         for node in node_list:
             if isinstance(cl_inst, BaseScyllaCluster) and not Setup.USE_LEGACY_CLUSTER_INIT:
@@ -3310,6 +3319,7 @@ def wait_for_init_wrap(method):
         if isinstance(cl_inst, BaseScyllaCluster):
             cl_inst.wait_for_nodes_up_and_normal(nodes=node_list, verification_node=node_list[0])
 
+        if reloc_tmp_dir : os.system("rm -r {}".format(reloc_tmp_dir))
         time_elapsed = time.perf_counter() - start_time
         cl_inst.log.debug('Setup duration -> %s s', int(time_elapsed))
 
@@ -3323,13 +3333,13 @@ class ClusterNodesNotReady(Exception):
 
 class BaseScyllaCluster:  # pylint: disable=too-many-public-methods, too-many-instance-attributes
     node_setup_requires_scylla_restart = True
-
     def __init__(self, *args, **kwargs):
         self.nemesis_termination_event = threading.Event()
         self.nemesis = []
         self.nemesis_threads = []
         self.nemesis_count = 0
         self._node_cycle = None
+        self.reloc_pkg_dir = None
         super(BaseScyllaCluster, self).__init__(*args, **kwargs)
 
     @staticmethod
@@ -3923,7 +3933,47 @@ class BaseScyllaCluster:  # pylint: disable=too-many-public-methods, too-many-in
                     self.log.warning("Backend '%s' not support. Won't configure manager backups!", cluster_backend)
         else:
             self._reuse_cluster_setup(node)
+        if self.reloc_pkg_dir:
+            node.stop_scylla_server(verify_down = True)
+            node.log.info('Updating Reloc package binary')
+            node.remoter.sudo("find /tmp -name scylla_package_perms.txt -exec sudo setfacl --restore {} \\;")
+            node.remoter.sudo("getfacl -pR /opt/scylladb > /tmp/scylla_package_perms.txt")
+            node.remoter.sudo("chown -R centos /opt/scylladb")
+            dirs_to_copy = ['libreloc','libexec']
+            #replace binaries and so's
+            for d in dirs_to_copy:
+                node.remoter.send_files(self.reloc_pkg_dir + "/" + d + "/", "/opt/scylladb" + "/" + d + "/", verbose=True)
+            node.remoter.sudo(shell_script_cmd(f"""\
+                    patchelf() {{
+                        # patchelf comes from the build system, so it needs the build system's ld.so and
+                        # shared libraries. We can't use patchelf on patchelf itself, so invoke it via
+                        # ld.so.
+                        LD_LIBRARY_PATH="/opt/scylladb/libreloc" libreloc/ld.so libexec/patchelf "\\$@"
+                    }}
 
+                    adjust_bin() {{
+                        local bin="\\$1"
+                        # We could add --set-rpath too, but then debugedit (called by rpmbuild) barfs
+                        # on the result. So use LD_LIBRARY_PATH in the thunk, below.
+                        if [ -z "\\$bin" ]; then
+                            return
+                        fi
+                        if [ "x\\$bin" = "xpatchelf" ]; then
+                            return
+                        fi
+                        patchelf --set-interpreter "/opt/scylladb/libreloc/ld.so" "/opt/scylladb/libexec/\\$bin"
+                    }}
+
+                    cd /opt/scylladb
+                    for bin in libexec/*; do
+	                    adjust_bin "\\${{bin#libexec/}}"
+                    done
+                    """))
+            node.remoter.sudo("cd / && setfacl --restore /tmp/scylla_package_perms.txt | true")
+            node.remoter.sudo("rm /tmp/scylla_package_perms.txt | true")
+            node.start_scylla_server()
+        else:
+            node.log.info("Not Updating Reloc package binary")
         node.wait_db_up(verbose=verbose, timeout=timeout)
         nodes_status = node.get_nodes_status()
         check_nodes_status(nodes_status=nodes_status, current_node=node)
