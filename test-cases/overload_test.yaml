@@ -1,0 +1,73 @@
+# this is a conceptual test for overload, it demonstrates some params that needs to be tweaked
+# in order to performe stress tests using the longevity custom test.
+
+test_duration: 180
+
+#number of nodes in the cluster
+n_db_nodes: 3
+#number of loadres in the cluster
+n_loaders: 1
+#number of monitors - we will probably wont touch it.
+n_monitor_nodes: 1
+
+
+instance_type_db: 'i3.2xlarge'
+
+nemesis_class_name: 'NoOpMonkey'
+#You shoule be able to use either of the bellow to populate the cluster, there is enterprise:
+
+#lets start simple - with a predetermined ami
+ami_id_db_scylla: 'ami-0d08563a7edf8e57d'
+#scylla_version: '4.0'
+region_name:
+    - us-east-1
+#I used to need it but now it seams resolved keeping this so we remember that we might need it
+# the sympthom is that you and sct itself can't ssh into the nodes if you run this locally.
+#security_group_ids: 'sg-07e6dc40a905f2716'
+#This is so you can search for the cluster nodes later
+user_prefix: 'some_cluster'
+# prefer this as spot_low_price but if nodes spontaniously get killed change this to on_demand
+instance_provision: 'spot_low_price'
+logs_transport: 'ssh'
+ip_ssh_connections: 'public'
+post_behavior_db_nodes: "destroy"
+post_behavior_loader_nodes: "destroy"
+post_behavior_monitor_nodes: "destroy"
+
+#you can run scylla with additional parameters
+#append_scylla_args: '--blocked-reactor-notify-ms 500 --abort-on-lsa-bad-alloc 1 --abort-on-seastar-bad-alloc --abort-on-internal-error 1 --enable-sstables-mc-format 1'
+
+#if this parameter is true - scylla debug will be installed which takes more time to set up the cluster, on the other hand
+#if it does gets installed you should be able to debug cores in place
+backtrace_decoding: false
+
+collect_logs: False
+store_perf_results: False
+
+#an optional addition to scylla yaml
+#append_scylla_yaml: '/home/eliransin/issues/1523_enterprise/scylla.yaml'
+
+bench_run: true
+max_partitions_in_test_table: 400
+partition_range_with_data_validation: 0-100
+prepare_write_cmd:  ["scylla-bench -workload=sequential -mode=write -replication-factor=3 -partition-count=100 -clustering-row-count=5555                       -clustering-row-size=uniform:1024..2048 -concurrency=10 -connection-count=10 -consistency-level=quorum -rows-per-request=10 -timeout=30s -validate-data" ,
+                     "scylla-bench -workload=sequential -mode=write -replication-factor=3 -partition-count=100 -clustering-row-count=5555 -partition-offset=101 -clustering-row-size=uniform:1024..2048 -concurrency=10 -connection-count=10 -consistency-level=quorum -rows-per-request=10 -timeout=30s",
+                     "scylla-bench -workload=sequential -mode=write -replication-factor=3 -partition-count=100 -clustering-row-count=5555 -partition-offset=201 -clustering-row-size=uniform:1024..2048 -concurrency=10 -connection-count=10 -consistency-level=quorum -rows-per-request=10 -timeout=30s",
+                     "scylla-bench -workload=sequential -mode=write -replication-factor=3 -partition-count=100 -clustering-row-count=5555 -partition-offset=301 -clustering-row-size=uniform:1024..2048 -concurrency=10 -connection-count=10 -consistency-level=quorum -rows-per-request=10 -timeout=30s"
+                    ]
+
+prepare_verify_cmd: ["scylla-bench -workload=sequential -mode=read -replication-factor=3 -partition-count=25 -clustering-row-count=5555                      -clustering-row-size=uniform:1024..2048 -concurrency=100 -connection-count=100 -consistency-level=quorum -rows-per-request=10 -timeout=30s -iterations 1 -validate-data",
+                     "scylla-bench -workload=sequential -mode=read -replication-factor=3 -partition-count=25 -clustering-row-count=5555 -partition-offset=26 -clustering-row-size=uniform:1024..2048 -concurrency=100 -connection-count=100 -consistency-level=quorum -rows-per-request=10 -timeout=30s -iterations 1 -validate-data",
+                     "scylla-bench -workload=sequential -mode=read -replication-factor=3 -partition-count=25 -clustering-row-count=5555 -partition-offset=51 -clustering-row-size=uniform:1024..2048 -concurrency=100 -connection-count=100 -consistency-level=quorum -rows-per-request=10 -timeout=30s -iterations 1 -validate-data",
+                     "scylla-bench -workload=sequential -mode=read -replication-factor=3 -partition-count=25 -clustering-row-count=5555 -partition-offset=76 -clustering-row-size=uniform:1024..2048 -concurrency=100 -connection-count=100 -consistency-level=quorum -rows-per-request=10 -timeout=30s -iterations 1 -validate-data"
+                    ]
+
+stress_cmd: ["scylla-bench -workload=sequential -mode=write -replication-factor=3 -partition-count=25 -clustering-row-count=10000 -partition-offset=401 -clustering-row-size=uniform:10..1024     -concurrency=10  -connection-count=10  -consistency-level=quorum -rows-per-request=10 -timeout=30s -iterations 10",
+             "scylla-bench -workload=sequential -mode=write -replication-factor=3 -partition-count=25 -clustering-row-count=100   -partition-offset=426 -clustering-row-size=uniform:2048..5120   -concurrency=10  -connection-count=10  -consistency-level=quorum -rows-per-request=10 -timeout=30s -iterations 10",
+             "scylla-bench -workload=sequential -mode=write -replication-factor=3 -partition-count=25 -clustering-row-count=10    -partition-offset=451 -clustering-row-size=uniform:5120..8192   -concurrency=10  -connection-count=10  -consistency-level=quorum -rows-per-request=10 -timeout=30s -iterations 10",
+             "scylla-bench -workload=sequential -mode=write -replication-factor=3 -partition-count=25 -clustering-row-count=1     -partition-offset=476 -clustering-row-size=uniform:8192..10240  -concurrency=10  -connection-count=10  -consistency-level=quorum -rows-per-request=10 -timeout=30s -iterations 10",
+             "scylla-bench -workload=sequential -mode=read  -replication-factor=3 -partition-count=25 -clustering-row-count=5555                        -clustering-row-size=uniform:1024..2048   -concurrency=100 -connection-count=100 -consistency-level=quorum -rows-per-request=10 -timeout=30s -iterations 0 -duration=540m -validate-data",
+             "scylla-bench -workload=sequential -mode=read  -replication-factor=3 -partition-count=25 -clustering-row-count=5555 -partition-offset=26   -clustering-row-size=uniform:1024..2048   -concurrency=100 -connection-count=100 -consistency-level=quorum -rows-per-request=10 -timeout=30s -iterations 0 -duration=540m -validate-data",
+             "scylla-bench -workload=sequential -mode=read  -replication-factor=3 -partition-count=25 -clustering-row-count=5555 -partition-offset=51   -clustering-row-size=uniform:1024..2048   -concurrency=100 -connection-count=100 -consistency-level=quorum -rows-per-request=10 -timeout=30s -iterations 0 -duration=540m -validate-data",
+             "scylla-bench -workload=sequential -mode=read  -replication-factor=3 -partition-count=25 -clustering-row-count=5555 -partition-offset=76   -clustering-row-size=uniform:1024..2048   -concurrency=100 -connection-count=100 -consistency-level=quorum -rows-per-request=10 -timeout=30s -iterations 0 -duration=540m -validate-data"
+             ]
