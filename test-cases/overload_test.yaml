@@ -3,6 +3,10 @@
 
 test_duration: 180
 
+# test id for reusing the cluster
+test_id: 'beefbeef-beef-4444-beef-beefbeefbeef'
+#reuse_cluster: 'beefbeef-beef-4444-beef-beefbeefbeef'
+
 #number of nodes in the cluster
 n_db_nodes: 3
 #number of loadres in the cluster
@@ -25,7 +29,7 @@ region_name:
 # the sympthom is that you and sct itself can't ssh into the nodes if you run this locally.
 #security_group_ids: 'sg-07e6dc40a905f2716'
 #This is so you can search for the cluster nodes later
-user_prefix: 'some_cluster'
+user_prefix: 'sarna'
 # prefer this as spot_low_price but if nodes spontaniously get killed change this to on_demand
 instance_provision: 'spot_low_price'
 logs_transport: 'ssh'
